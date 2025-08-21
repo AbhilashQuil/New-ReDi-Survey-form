@@ -5,8 +5,11 @@ import path from 'path';
 import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 import { NextStepResponse, RunState } from './types.js';
-// Optional Temporal bridge (safe if Temporal isn't running)
 import { startWorkflowRun, signalFormSubmitted } from './temporal/client.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -14,6 +17,29 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
 const formsDir = path.resolve(process.cwd(), 'src/forms');
+
+// Configuration object for easier access
+const config = {
+  neo4j: {
+    uri: process.env.NEO4J_URI!,
+    username: process.env.NEO4J_USERNAME!,
+    password: process.env.NEO4J_PASSWORD!,
+  },
+  database: {
+    type: process.env.DB_TYPE!,
+    host: process.env.DB_HOST!,
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_DATABASE!,
+    username: process.env.DB_USERNAME!,
+    password: process.env.DB_PASSWORD!,
+  },
+  azureOpenAI: {
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    apiKey: process.env.AZURE_OPENAI_API_KEY!,
+    deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME!,
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION!,
+  },
+};
 
 type StepId = 'Q1'|'Q2'|'Q3'|'Q4'|'Q5'|'Q6'|'Q7'|'Q8'|'Q9'|'EXIT_1'|'EXIT_2';
 
@@ -48,7 +74,17 @@ function chooseNext(state: RunState, last: StepId): StepId {
 }
 
 async function inferSkillsFromFreeText(ctx: any): Promise<{ skills: string[], primary?: string, role?: string }> {
-  // TODO: call Azure OpenAI / Neo4j using ctx.jobDesc, ctx.responsibilities, ctx.yearsBand
+  // Now you can use the config object to access your API credentials
+  // Example:
+  const neo4jConnection = await connectToNeo4j(config.neo4j);
+  const openAIClient = new AzureOpenAI({
+    endpoint: config.azureOpenAI.endpoint,
+    apiKey: config.azureOpenAI.apiKey,
+    apiVersion: config.azureOpenAI.apiVersion,
+    deployment: config.azureOpenAI.deploymentName
+  });
+  
+  // TODO: Implement the actual logic using ctx.jobDesc, ctx.responsibilities, ctx.yearsBand
   return { skills: [], primary: undefined, role: undefined };
 }
 
@@ -131,4 +167,5 @@ app.post('/api/workflow/next', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 });
