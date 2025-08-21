@@ -1,0 +1,34 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "content",
+      "html": "<b>Based on your responses so far, do you consider &lt;&lt;skill&gt;&gt; as your primary skill?</b>"
+    },
+    {
+      "type": "radio",
+      "key": "isPrimarySkill",
+      "label": "Primary skill confirmation",
+      "values": [
+        {
+          "label": "YES",
+          "value": "yes"
+        },
+        {
+          "label": "NO",
+          "value": "no"
+        }
+      ],
+      "validate": {
+        "required": true
+      },
+      "input": true
+    },
+    {
+      "type": "button",
+      "action": "submit",
+      "label": "Next",
+      "theme": "primary"
+    }
+  ]
+}

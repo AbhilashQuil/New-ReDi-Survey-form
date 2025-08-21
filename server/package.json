@@ -1,0 +1,24 @@
+{
+  "name": "server",
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "worker": "ts-node-dev --respawn src/temporal/worker.ts"
+  },
+  "dependencies": {
+    "axios": "^1",
+    "cors": "^2",
+    "express": "^4",
+    "fast-xml-parser": "^4",
+    "zod": "^3",
+    "@temporalio/client": "^1",
+    "@temporalio/worker": "^1",
+    "@temporalio/common": "^1",
+    "uuid": "^9"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2",
+    "typescript": "^5"
+  }
+}

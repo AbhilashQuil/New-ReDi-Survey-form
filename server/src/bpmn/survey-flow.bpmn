@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="ReDiSurvey" isExecutable="false">
+    <bpmn:startEvent id="ENTRY">
+      <bpmn:outgoing>flow_ENTRY_Q1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Q1" name="Q1"/>
+    <bpmn:userTask id="Q2" name="Q2"/>
+    <bpmn:userTask id="Q3" name="Q3"/>
+
+    <bpmn:exclusiveGateway id="GTW_SKILLS_EXIST" name="Skills exist?"/>
+    <bpmn:userTask id="Q4" name="Q4"/>
+    <bpmn:userTask id="Q5" name="Q5"/>
+    <bpmn:exclusiveGateway id="GTW_ANY_SELECTIONS" name="1 or more selections?"/>
+    <bpmn:userTask id="Q6" name="Q6"/>
+    <bpmn:userTask id="Q7" name="Q7"/>
+    <bpmn:userTask id="Q8" name="Q8"/>
+    <bpmn:userTask id="Q9" name="Q9"/>
+    <bpmn:exclusiveGateway id="GTW_PROCEED" name="Proceed?"/>
+
+    <bpmn:endEvent id="EXIT_1" name="Exit-1"/>
+    <bpmn:endEvent id="EXIT_2" name="Exit-2"/>
+
+    <bpmn:sequenceFlow id="flow_ENTRY_Q1" sourceRef="ENTRY" targetRef="Q1"/>
+    <bpmn:sequenceFlow id="flow_Q1_Q2" sourceRef="Q1" targetRef="Q2"/>
+    <bpmn:sequenceFlow id="flow_Q2_Q3" sourceRef="Q2" targetRef="Q3"/>
+    <bpmn:sequenceFlow id="flow_Q3_GTW" sourceRef="Q3" targetRef="GTW_SKILLS_EXIST"/>
+
+    <bpmn:sequenceFlow id="flow_GTW_Y_Q4" sourceRef="GTW_SKILLS_EXIST" targetRef="Q4"/>
+    <bpmn:sequenceFlow id="flow_GTW_N_Q5" sourceRef="GTW_SKILLS_EXIST" targetRef="Q5"/>
+
+    <bpmn:sequenceFlow id="flow_Q4_Q7" sourceRef="Q4" targetRef="Q7"/>
+
+    <bpmn:sequenceFlow id="flow_Q5_GTWSEL" sourceRef="Q5" targetRef="GTW_ANY_SELECTIONS"/>
+    <bpmn:sequenceFlow id="flow_SEL_Y_Q6" sourceRef="GTW_ANY_SELECTIONS" targetRef="Q6"/>
+    <bpmn:sequenceFlow id="flow_SEL_N_EXIT1" sourceRef="GTW_ANY_SELECTIONS" targetRef="EXIT_1"/>
+
+    <bpmn:sequenceFlow id="flow_Q6_Q7" sourceRef="Q6" targetRef="Q7"/>
+    <bpmn:sequenceFlow id="flow_Q7_Q8" sourceRef="Q7" targetRef="Q8"/>
+    <bpmn:sequenceFlow id="flow_Q8_Q9" sourceRef="Q8" targetRef="Q9"/>
+    <bpmn:sequenceFlow id="flow_Q9_GTW" sourceRef="Q9" targetRef="GTW_PROCEED"/>
+
+    <bpmn:sequenceFlow id="flow_PROC_Y_EXIT2" sourceRef="GTW_PROCEED" targetRef="EXIT_2"/>
+    <bpmn:sequenceFlow id="flow_PROC_RETAKE_Q1" sourceRef="GTW_PROCEED" targetRef="Q1"/>
+    <bpmn:sequenceFlow id="flow_PROC_EXIT1" sourceRef="GTW_PROCEED" targetRef="EXIT_1"/>
+  </bpmn:process>
+</bpmn:definitions>

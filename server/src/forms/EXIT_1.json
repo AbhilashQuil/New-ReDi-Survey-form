@@ -1,0 +1,9 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "content",
+      "html": "<h3>Thank you!</h3><p>Based on your responses, it looks like you are not currently, nor have worked recently in a technical role. The survey has been exited.</p>"
+    }
+  ]
+}

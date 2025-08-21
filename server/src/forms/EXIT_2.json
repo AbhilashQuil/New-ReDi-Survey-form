@@ -1,0 +1,9 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "content",
+      "html": "<h3>Thank you!</h3><p>You will receive an invitation to your technical assessment shortly.</p>"
+    }
+  ]
+}

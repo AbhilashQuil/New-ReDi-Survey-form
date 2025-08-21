@@ -1,0 +1,27 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "content",
+      "key": "skillHint",
+      "html": "<b>On the scale below, rate your proficiency on &lt;&lt;skill&gt;&gt;.</b>"
+    },
+    {
+      "type": "number",
+      "key": "skillProficiency",
+      "label": "Proficiency (0\u20137)",
+      "validate": {
+        "required": true,
+        "min": 0,
+        "max": 7
+      },
+      "input": true
+    },
+    {
+      "type": "button",
+      "action": "submit",
+      "label": "Next",
+      "theme": "primary"
+    }
+  ]
+}

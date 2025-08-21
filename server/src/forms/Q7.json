@@ -1,0 +1,40 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "datagrid",
+      "key": "skillsMatrix",
+      "label": "Rate your proficiency (0\u20137) for each skill",
+      "components": [
+        {
+          "type": "textfield",
+          "key": "skill",
+          "label": "Skill",
+          "disabled": true,
+          "input": true
+        },
+        {
+          "type": "number",
+          "key": "level",
+          "label": "Level (0\u20137)",
+          "validate": {
+            "required": true,
+            "min": 0,
+            "max": 7
+          },
+          "input": true
+        }
+      ],
+      "dataSrc": "url",
+      "data": {
+        "url": "http://localhost:4000/api/options/skills-matrix?source=context"
+      }
+    },
+    {
+      "type": "button",
+      "action": "submit",
+      "label": "Next",
+      "theme": "primary"
+    }
+  ]
+}

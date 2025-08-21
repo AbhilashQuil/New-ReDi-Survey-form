@@ -1,0 +1,25 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "select",
+      "key": "recentSkills",
+      "label": "Select skills you worked on in the last 1\u20133 years",
+      "multiple": true,
+      "widget": "choicesjs",
+      "dataSrc": "url",
+      "data": {
+        "url": "http://localhost:4000/api/options/skills?window=1-3y"
+      },
+      "valueProperty": "id",
+      "template": "<span>{{ item.label }}</span>",
+      "input": true
+    },
+    {
+      "type": "button",
+      "action": "submit",
+      "label": "Next",
+      "theme": "primary"
+    }
+  ]
+}
