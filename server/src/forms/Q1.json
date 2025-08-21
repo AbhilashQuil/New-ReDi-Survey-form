@@ -3,7 +3,7 @@
   "components": [
     {
       "type": "content",
-      "html": "<h3>Welcome &lt;&lt;name&gt;&gt; to ReDi!</h3><p>Please answer a few questions to determine the right assessment.</p>"
+      "html": "<h3>Welcome to ReDi!</h3><p>Please answer a few questions to determine the right assessment.</p>"
     },
     {
       "type": "select",
