@@ -3,17 +3,32 @@
   "components": [
     {
       "type": "content",
-      "key": "skillHint",
-      "html": "<b>On the scale below, rate your proficiency on &lt;&lt;skill&gt;&gt;.</b>"
+      "html": "<b>On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?</b>"
     },
     {
-      "type": "number",
+      "type": "radio",
       "key": "skillProficiency",
-      "label": "Proficiency (0\u20137)",
+      "label": "Skill proficiency level",
+      "values": [
+        {
+          "label": "Beginner",
+          "value": "beginner"
+        },
+        {
+          "label": "Intermediate",
+          "value": "intermediate"
+        },
+        {
+          "label": "Advanced",
+          "value": "advanced"
+        },
+        {
+          "label": "Expert",
+          "value": "expert"
+        }
+      ],
       "validate": {
-        "required": true,
-        "min": 0,
-        "max": 7
+        "required": true
       },
       "input": true
     },
