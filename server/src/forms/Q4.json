@@ -6,27 +6,13 @@
       "html": "<b>On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?</b>"
     },
     {
-      "type": "radio",
+      "type": "slider",
       "key": "skillProficiency",
-      "label": "Skill proficiency level",
-      "values": [
-        {
-          "label": "Beginner",
-          "value": "beginner"
-        },
-        {
-          "label": "Intermediate",
-          "value": "intermediate"
-        },
-        {
-          "label": "Advanced",
-          "value": "advanced"
-        },
-        {
-          "label": "Expert",
-          "value": "expert"
-        }
-      ],
+      "label": "Skill proficiency level (0-7)",
+      "min": 0,
+      "max": 7,
+      "step": 1,
+      "defaultValue": 0,
       "validate": {
         "required": true
       },
