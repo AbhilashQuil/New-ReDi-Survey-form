@@ -26,25 +26,14 @@
           "input": true
         },
         {
-          "type": "radio",
+          "type": "slider",
           "key": "proficiency",
-          "label": "Proficiency Level",
-          "inline": true,
+          "label": "Proficiency Level (0-7)",
           "tableView": true,
-          "values": [
-            {
-              "label": "Beginner",
-              "value": "beginner"
-            },
-            {
-              "label": "Intermediate", 
-              "value": "intermediate"
-            },
-            {
-              "label": "Advanced",
-              "value": "advanced"
-            }
-          ],
+          "min": 0,
+          "max": 7,
+          "step": 1,
+          "defaultValue": 0,
           "validate": {
             "required": true
           },
