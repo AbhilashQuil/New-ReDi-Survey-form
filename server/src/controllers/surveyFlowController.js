@@ -64,10 +64,12 @@ export class SurveyFlowController {
   replaceSkillPlaceholder(components, skill) {
     components.forEach(component => {
       if (component.type === 'content' && component.html) {
-        component.html = component.html.replace(/<<skill>>/g, skill);
+        // Fix: Replace {{skill}} instead of <<skill>>
+        component.html = component.html.replace(/\{\{skill\}\}/g, skill);
       }
       if (component.label) {
-        component.label = component.label.replace(/<<skill>>/g, skill);
+        // Fix: Replace {{skill}} instead of <<skill>>
+        component.label = component.label.replace(/\{\{skill\}\}/g, skill);
       }
       if (component.components) {
         this.replaceSkillPlaceholder(component.components, skill);
