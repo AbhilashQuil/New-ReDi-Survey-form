@@ -2,33 +2,56 @@
   "display": "form",
   "components": [
     {
+      "type": "content",
+      "html": "<b>Please rate your proficiency level for each of the following skills:</b>"
+    },
+    {
       "type": "datagrid",
       "key": "skillsMatrix",
-      "label": "Rate your proficiency (0\u20137) for each skill",
+      "label": "",
+      "hideLabel": true,
+      "addAnother": false,
+      "addAnotherPosition": "bottom",
+      "defaultOpen": true,
+      "layoutFixed": false,
+      "enableRowGroups": false,
+      "initEmpty": false,
       "components": [
         {
           "type": "textfield",
           "key": "skill",
           "label": "Skill",
           "disabled": true,
+          "tableView": true,
           "input": true
         },
         {
-          "type": "number",
-          "key": "level",
-          "label": "Level (0\u20137)",
+          "type": "radio",
+          "key": "proficiency",
+          "label": "Proficiency Level",
+          "inline": true,
+          "tableView": true,
+          "values": [
+            {
+              "label": "Beginner",
+              "value": "beginner"
+            },
+            {
+              "label": "Intermediate", 
+              "value": "intermediate"
+            },
+            {
+              "label": "Advanced",
+              "value": "advanced"
+            }
+          ],
           "validate": {
-            "required": true,
-            "min": 0,
-            "max": 7
+            "required": true
           },
           "input": true
         }
       ],
-      "dataSrc": "url",
-      "data": {
-        "url": "http://localhost:4000/api/options/skills-matrix?source=context"
-      }
+      "defaultValue": {{secSkillsData}}
     },
     {
       "type": "button",
