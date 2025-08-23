@@ -6,26 +6,12 @@
       "key": "primarySkillYears",
       "label": "Relevant experience on your primary skill",
       "widget": "choicesjs",
+      "dataSrc": "custom",
       "data": {
-        "values": [
-          {
-            "label": "0-2 years",
-            "value": "0-2"
-          },
-          {
-            "label": "3-5 years",
-            "value": "3-5"
-          },
-          {
-            "label": "6-9 years",
-            "value": "6-9"
-          },
-          {
-            "label": "10+ years",
-            "value": "10+"
-          }
-        ]
+        "custom": "const bands=[{label:'0-2 years',value:'0-2',max:2},{label:'3-5 years',value:'3-5',max:5},{label:'6-9 years',value:'6-9',max:9},{label:'10+ years',value:'10+',max:Infinity}]; const map={'0-2':2,'3-5':5,'6-9':9,'10+':Infinity}; const selected=data && data.yearsBand; const maxAllowed=Object.prototype.hasOwnProperty.call(map, selected)?map[selected]:Infinity; return bands.filter(b=>b.max<=maxAllowed).map(({label,value})=>({label,value}));"
       },
+      "refreshOn": "yearsBand",
+      "clearOnRefresh": true,
       "validate": {
         "required": true
       },
