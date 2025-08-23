@@ -94,18 +94,19 @@ function chooseNext(state: RunState, last: StepId): StepId {
   
   if (last === 'Q4') {
     // After Q4, check if we have secondary skills
-    const allSkills = (ctx.inferredSkills ?? []) as string[];
-    const primarySkill = ctx.primarySkill || ctx.suggestedPrimarySkill;
-    const secondarySkills = allSkills.filter((skill: string) => 
-      skill !== primarySkill && skill !== "No Skills"
-    );
-    return secondarySkills && secondarySkills.length > 0 ? 'Q7' : 'Q8';
+    const secondarySkills = ctx.secSkills || [];
+    return secondarySkills.length > 0 ? 'Q7' : 'Q8';
   }
   
   if (last === 'Q5') {
     const sel = (ctx.recentSkills ?? []) as string[];
     const hasValidSkills = sel.length > 0 && !sel.includes("No Skills");
     return hasValidSkills ? 'Q6' : 'EXIT_1';
+  }
+  
+  if (last === 'Q7') {
+    // After Q7, go to Q8
+    return 'Q8';
   }
   
   if (last === 'Q9') {
@@ -259,13 +260,21 @@ Example output:
     const availableSkills = await getSkillsFromNeo4j();
     console.log('Available skills from Neo4j:', availableSkills);
     
-    // Match each extracted skill with Neo4j database
+    // Match each extracted skill with Neo4j database and only keep those that exist in Neo4j
     const matchedSkills = [];
+    const skillsInNeo4j = new Set<string>();
+    
     for (const skill of result.skills) {
       if (skill !== "No Skill") {
         const matchedSkill = await matchSkillWithNeo4j(skill, availableSkills);
-        matchedSkills.push(matchedSkill);
-        console.log(`Skill "${skill}" matched to "${matchedSkill}"`);
+        // Only add if the skill exists in Neo4j
+        if (availableSkills.includes(matchedSkill)) {
+          matchedSkills.push(matchedSkill);
+          skillsInNeo4j.add(matchedSkill);
+          console.log(`Skill "${skill}" matched to "${matchedSkill}" (exists in Neo4j)`);
+        } else {
+          console.log(`Skill "${skill}" not found in Neo4j, excluding from results`);
+        }
       }
     }
     
@@ -273,7 +282,14 @@ Example output:
     let matchedPrimary = result.primary;
     if (result.primary && result.primary !== "No Skill") {
       matchedPrimary = await matchSkillWithNeo4j(result.primary, availableSkills);
-      console.log(`Primary skill "${result.primary}" matched to "${matchedPrimary}"`);
+      // Check if primary skill exists in Neo4j
+      if (!availableSkills.includes(matchedPrimary)) {
+        console.log(`Primary skill "${result.primary}" not found in Neo4j`);
+        // If primary skill doesn't exist in Neo4j, pick the first matched skill as primary
+        matchedPrimary = matchedSkills.length > 0 ? matchedSkills[0] : undefined;
+      } else {
+        console.log(`Primary skill "${result.primary}" matched to "${matchedPrimary}"`);
+      }
     }
     
     const finalResult = {
@@ -407,14 +423,15 @@ app.post('/api/workflow/next', async (req, res) => {
     state.context.suggestedPrimarySkill = inf.primary;
     state.context.inferredRole = inf.role;
     
-    // Calculate secondary skills
+    // Calculate secondary skills - only those that are different from primary and exist in Neo4j
+    // Note: inf.skills already contains only skills that exist in Neo4j due to the matching logic
     const secondarySkills = inf.skills.filter((skill: string) => 
       skill !== inf.primary && skill !== "No Skill"
     );
     state.context.secSkills = secondarySkills;
     
     console.log('Primary skill:', inf.primary);
-    console.log('Secondary skills:', secondarySkills);
+    console.log('Secondary skills (all from Neo4j):', secondarySkills);
     
     // Initialize skill assessment tracking
     state.context.skillAssessments = [];
@@ -435,6 +452,12 @@ app.post('/api/workflow/next', async (req, res) => {
     
     // Set primary skill
     state.context.primarySkill = primarySkill;
+  }
+  
+  if (taskId === 'Q6') {
+    const primary = state.context.suggestedPrimarySkill
+      || (Array.isArray(state.context.recentSkills) ? state.context.recentSkills[0] : undefined);
+    state.context.primarySkill = primary;
   }
   
   if (taskId === 'Q7') {
