@@ -303,6 +303,33 @@ function loadForm(fileName: string, tokens: Record<string,string>) {
   return JSON.parse(json);
 }
 
+// Update the loadForm function to handle dynamic data replacement
+function loadFormWithSecondarySkills(fileName: string, tokens: Record<string,string>, secondarySkills?: string[]) {
+  const p = path.join(formsDir, fileName);
+  let json = fs.readFileSync(p, 'utf8');
+  
+  // Replace tokens
+  json = json.replaceAll('&lt;&lt;name&gt;&gt;', tokens.name ?? '')
+             .replaceAll('&lt;&lt;skill&gt;&gt;', tokens.skill ?? '')
+             .replaceAll('&lt;&lt;role&gt;&gt;', tokens.role ?? '')
+             .replaceAll('{{name}}', tokens.name ?? '')
+             .replaceAll('{{skill}}', tokens.skill ?? '')
+             .replaceAll('{{role}}', tokens.role ?? '');
+  
+  // If secondary skills are provided, create the default value
+  if (secondarySkills && secondarySkills.length > 0) {
+    const secSkillsData = secondarySkills.map(skill => ({
+      skill: skill,
+      proficiency: ''
+    }));
+    json = json.replace('{{secSkillsData}}', JSON.stringify(secSkillsData));
+  } else {
+    json = json.replace('{{secSkillsData}}', '[]');
+  }
+  
+  return JSON.parse(json);
+}
+
 // Mock options
 app.get('/api/options/skills', (_req, res) => {
   res.json([
@@ -313,11 +340,28 @@ app.get('/api/options/skills', (_req, res) => {
   ]);
 });
 
-app.get('/api/options/skills-matrix', (_req, res) => {
+app.get('/api/options/skills-matrix', (req, res) => {
+  // Check if this is being called from a form context
+  const { runId } = req.query;
+  
+  if (runId) {
+    const state = runs.get(runId as string);
+    if (state && state.context.secSkills) {
+      // Return secondary skills for this specific run
+      const secSkills = state.context.secSkills;
+      const skillsMatrix = secSkills.map((skill: string) => ({
+        skill: skill,
+        proficiency: null
+      }));
+      return res.json(skillsMatrix);
+    }
+  }
+  
+  // Default response if no context
   res.json([
-    { skill: "AWS Architecture", level: null },
-    { skill: "DevOps", level: null },
-    { skill: "Neo4j", level: null }
+    { skill: "AWS Architecture", proficiency: null },
+    { skill: "DevOps", proficiency: null },
+    { skill: "Neo4j", proficiency: null }
   ]);
 });
 
@@ -357,55 +401,54 @@ app.post('/api/workflow/next', async (req, res) => {
 
   try { await signalFormSubmitted(runId, { taskId, values }); } catch {}
 
-  // if (taskId === 'Q3') {
-  //   const inf = await inferSkillsFromFreeText(state.context);
-  //   state.context.inferredSkills = inf.skills;
-  //   state.context.suggestedPrimarySkill = inf.primary;
-  //   state.context.inferredRole = inf.role;
-  // }
-
   if (taskId === 'Q3') {
     const inf = await inferSkillsFromFreeText(state.context);
     state.context.inferredSkills = inf.skills;
     state.context.suggestedPrimarySkill = inf.primary;
     state.context.inferredRole = inf.role;
     
+    // Calculate secondary skills
+    const secondarySkills = inf.skills.filter((skill: string) => 
+      skill !== inf.primary && skill !== "No Skill"
+    );
+    state.context.secSkills = secondarySkills;
+    
+    console.log('Primary skill:', inf.primary);
+    console.log('Secondary skills:', secondarySkills);
+    
     // Initialize skill assessment tracking
-    state.context.currentSkillIndex = 0;
     state.context.skillAssessments = [];
   }
   
-  // if (taskId === 'Q4' || taskId === 'Q6') {
-  //   const primary = state.context.suggestedPrimarySkill
-  //     || (Array.isArray(state.context.recentSkills) ? state.context.recentSkills[0] : undefined);
-  //   state.context.primarySkill = primary;
-  // }
-
   if (taskId === 'Q4') {
-    // Store the skill assessment
-    const currentSkillIndex = state.context.currentSkillIndex || 0;
-    const skills = state.context.inferredSkills || [];
-    const currentSkill = skills[currentSkillIndex];
+    // Store the primary skill assessment
+    const primarySkill = state.context.suggestedPrimarySkill;
     
     if (!state.context.skillAssessments) {
       state.context.skillAssessments = [];
     }
     
     state.context.skillAssessments.push({
-      skill: currentSkill,
-      proficiencyLevel: values.proficiencyLevel
+      skill: primarySkill,
+      proficiencyLevel: values.skillProficiency
     });
     
-    // Move to next skill if available
-    if (currentSkillIndex < skills.length - 1) {
-      state.context.currentSkillIndex = currentSkillIndex + 1;
-    }
+    // Set primary skill
+    state.context.primarySkill = primarySkill;
   }
   
-  if (taskId === 'Q6') {
-    const primary = state.context.suggestedPrimarySkill
-      || (Array.isArray(state.context.recentSkills) ? state.context.recentSkills[0] : undefined);
-    state.context.primarySkill = primary;
+  if (taskId === 'Q7') {
+    // Store all secondary skill assessments
+    if (values.skillsMatrix) {
+      values.skillsMatrix.forEach((assessment: any) => {
+        state.context.skillAssessments.push({
+          skill: assessment.skill,
+          proficiencyLevel: assessment.proficiency
+        });
+      });
+    }
+    
+    console.log('All skill assessments:', state.context.skillAssessments);
   }
 
   const nextId = chooseNext(state, taskId as StepId);
@@ -417,60 +460,67 @@ app.post('/api/workflow/next', async (req, res) => {
   }
 
   state.currentTaskId = nextId;
-  // const inject = {
-  //   name: state.context.name || 'Candidate',
-  //   skill: state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill',
-  //   role: state.context.inferredRole || 'your role'
-  // };
 
-  // Determine which skill to show for Q4
-  // let skillToShow = 'the suggested skill';
-  // if (nextId === 'Q4') {
-  //   const currentSkillIndex = state.context.currentSkillIndex || 0;
-  //   const skills = state.context.inferredSkills || [];
-  //   skillToShow = skills[currentSkillIndex] || 'the suggested skill';
-  // } else {
-  //   skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
-  // }
-
-  // const inject = {
-  //   name: state.context.name || 'Candidate',
-  //   skill: skillToShow,
-  //   role: state.context.inferredRole || 'your role'
-  // };
-
+  let form;
   let skillToShow = 'the suggested skill';
   
   if (nextId === 'Q4') {
-    // When going to Q4, we need to use the skills from inference
-    const inferredSkills = state.context.inferredSkills || [];
-    const currentSkillIndex = state.context.currentSkillIndex || 0;
-  
-    console.log('Q4 - Inferred skills:', inferredSkills);
-    console.log('Q4 - Current skill index:', currentSkillIndex);
-  
-    if (inferredSkills.length > 0 && currentSkillIndex < inferredSkills.length) {
-      skillToShow = inferredSkills[currentSkillIndex];
-    } else if (state.context.suggestedPrimarySkill) {
-      skillToShow = state.context.suggestedPrimarySkill;
+    // Q4 shows primary skill
+    skillToShow = state.context.suggestedPrimarySkill || 'the suggested skill';
+    console.log('Q4 - Primary skill:', skillToShow);
+    
+    const inject = {
+      name: state.context.name || 'Candidate',
+      skill: skillToShow,
+      role: state.context.inferredRole || 'your role'
+    };
+    
+    form = loadForm(`${nextId}.json`, inject);
+  } else if (nextId === 'Q7') {
+    // Q7 shows secondary skills
+    const secondarySkills = state.context.secSkills || [];
+    
+    console.log('Q7 - Loading with secondary skills:', secondarySkills);
+    
+    const inject = {
+      name: state.context.name || 'Candidate',
+      skill: 'secondary skills',
+      role: state.context.inferredRole || 'your role'
+    };
+    
+    form = loadFormWithSecondarySkills(`${nextId}.json`, inject, secondarySkills);
+    
+    // Update the form to use embedded data instead of URL
+    if (form.components) {
+      const datagrid = form.components.find((c: any) => c.key === 'skillsMatrix');
+      if (datagrid) {
+        // Change from URL to values
+        datagrid.dataSrc = 'values';
+        datagrid.data = {
+          values: secondarySkills.map(skill => ({
+            skill: skill,
+            proficiency: ''
+          }))
+        };
+        // Remove the URL property
+        delete datagrid.data.url;
+      }
     }
   } else {
     skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
+    
+    const inject = {
+      name: state.context.name || 'Candidate',
+      skill: skillToShow,
+      role: state.context.inferredRole || 'your role'
+    };
+    
+    form = loadForm(`${nextId}.json`, inject);
   }
   
-  console.log('Skill to show:', skillToShow);
-  
-  const inject = {
-    name: state.context.name || 'Candidate',
-    skill: skillToShow,
-    role: state.context.inferredRole || 'your role'
-  };
-
   console.log('Loading form:', nextId);
-  console.log('Inject object:', inject);
   console.log('Current context:', state.context);
-
-  const form = loadForm(`${nextId}.json`, inject);
+  
   res.json({ done: false, currentTaskId: nextId, form, context: state.context });
 });
 
