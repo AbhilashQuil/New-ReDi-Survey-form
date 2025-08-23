@@ -8,6 +8,7 @@ import { NextStepResponse, RunState } from './types.js';
 import { startWorkflowRun, signalFormSubmitted } from './temporal/client.js';
 import { OpenAIClient, AzureKeyCredential } from "@azure/openai";
 import dotenv from 'dotenv';
+import neo4j from 'neo4j-driver';
 
 // Load environment variables
 dotenv.config();
@@ -17,7 +18,10 @@ const requiredEnvVars = [
   'AZURE_OPENAI_ENDPOINT',
   'AZURE_OPENAI_API_KEY',
   'AZURE_OPENAI_DEPLOYMENT_NAME',
-  'AZURE_OPENAI_API_VERSION'
+  'AZURE_OPENAI_API_VERSION',
+  'NEO4J_URI',
+  'NEO4J_USERNAME',
+  'NEO4J_PASSWORD'
 ];
 
 for (const envVar of requiredEnvVars) {
@@ -39,6 +43,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
 const formsDir = path.resolve(process.cwd(), 'src/forms');
+
+// Initialize Neo4j driver
+const neo4jDriver = neo4j.driver(
+  process.env.NEO4J_URI!,
+  neo4j.auth.basic(process.env.NEO4J_USERNAME!, process.env.NEO4J_PASSWORD!)
+);
 
 // Configuration object for easier access
 const config = {
@@ -111,6 +121,86 @@ function chooseNext(state: RunState, last: StepId): StepId {
   return (NEXT_LINEAR[last] ?? 'EXIT_2') as StepId;
 }
 
+// Function to get skills from Neo4j
+async function getSkillsFromNeo4j(): Promise<string[]> {
+  const session = neo4jDriver.session();
+  try {
+    const result = await session.run(
+      'MATCH (s:Skill) RETURN s.name as name'
+    );
+    return result.records.map(record => record.get('name'));
+  } catch (error) {
+    console.error('Error fetching skills from Neo4j:', error);
+    return [];
+  } finally {
+    await session.close();
+  }
+}
+
+// Function to match skill with Neo4j database
+async function matchSkillWithNeo4j(extractedSkill: string, availableSkills: string[]): Promise<string> {
+  if (availableSkills.length === 0) return extractedSkill;
+
+  // First try direct match (case-insensitive)
+  const directMatch = availableSkills.find(
+    skill => skill.toLowerCase() === extractedSkill.toLowerCase()
+  );
+  if (directMatch) {
+    console.log(`Direct match found for "${extractedSkill}": "${directMatch}"`);
+    return directMatch;
+  }
+
+  // If no direct match, use LLM for semantic matching
+  const client = new OpenAIClient(
+    config.azureOpenAI.endpoint,
+    new AzureKeyCredential(config.azureOpenAI.apiKey)
+  );
+
+  const messages = [
+    { 
+      role: "system", 
+      content: "You are a skill matching assistant. You must return ONLY the exact skill name from the provided list that best matches the input, or return the original skill if no match is found. Do not add any explanations." 
+    },
+    { 
+      role: "user", 
+      content: `Input skill: "${extractedSkill}"
+      
+Available skills in database:
+${availableSkills.map((skill, index) => `${index + 1}. ${skill}`).join('\n')}
+
+Return ONLY the exact skill name from the list above that best matches the input skill.
+For example: "Java SE" should match to "Java", "JS" should match to "JavaScript", etc.
+If no good match exists, return the original skill: "${extractedSkill}"`
+    }
+  ];
+
+  try {
+    const response = await client.getChatCompletions(
+      config.azureOpenAI.deploymentName,
+      messages,
+      {
+        temperature: 0,
+        maxTokens: 50,
+        topP: 1
+      }
+    );
+
+    const match = response.choices[0].message.content.trim();
+    console.log(`LLM response for "${extractedSkill}": "${match}"`);
+    
+    // Verify the match is actually in the available skills list
+    if (availableSkills.includes(match)) {
+      return match;
+    }
+    
+    // If not found, return original
+    return extractedSkill;
+  } catch (error) {
+    console.error('Error matching skill:', error);
+    return extractedSkill;
+  }
+}
+
 async function inferSkillsFromFreeText(ctx: any): Promise<{ skills: string[], primary?: string, role?: string }> {
   try {
     // Initialize Azure OpenAI client
@@ -163,14 +253,38 @@ Example output:
 
     const result = JSON.parse(response.choices[0].message.content);
 
-    console.log('AI inference result:', result);
+    console.log('AI inference result (before Neo4j matching):', result);
     
-    // Ensure we return the expected structure
-    return {
-      skills: result.skills || [],
-      primary: result.primary === "No Skill" ? undefined : result.primary,
+    // Get available skills from Neo4j
+    const availableSkills = await getSkillsFromNeo4j();
+    console.log('Available skills from Neo4j:', availableSkills);
+    
+    // Match each extracted skill with Neo4j database
+    const matchedSkills = [];
+    for (const skill of result.skills) {
+      if (skill !== "No Skill") {
+        const matchedSkill = await matchSkillWithNeo4j(skill, availableSkills);
+        matchedSkills.push(matchedSkill);
+        console.log(`Skill "${skill}" matched to "${matchedSkill}"`);
+      }
+    }
+    
+    // Match primary skill
+    let matchedPrimary = result.primary;
+    if (result.primary && result.primary !== "No Skill") {
+      matchedPrimary = await matchSkillWithNeo4j(result.primary, availableSkills);
+      console.log(`Primary skill "${result.primary}" matched to "${matchedPrimary}"`);
+    }
+    
+    const finalResult = {
+      skills: matchedSkills.length > 0 ? matchedSkills : ["No Skill"],
+      primary: matchedPrimary === "No Skill" ? undefined : matchedPrimary,
       role: result.role || undefined
     };
+    
+    console.log('AI inference result (after Neo4j matching):', finalResult);
+    
+    return finalResult;
   } catch (error) {
     console.error('Error inferring skills:', error);
     return { skills: [], primary: undefined, role: undefined };
@@ -358,6 +472,12 @@ app.post('/api/workflow/next', async (req, res) => {
 
   const form = loadForm(`${nextId}.json`, inject);
   res.json({ done: false, currentTaskId: nextId, form, context: state.context });
+});
+
+// Cleanup on server shutdown
+process.on('SIGINT', async () => {
+  await neo4jDriver.close();
+  process.exit(0);
 });
 
 app.listen(PORT, () => {
