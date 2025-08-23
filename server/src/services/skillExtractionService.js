@@ -28,8 +28,13 @@ export class SkillExtractionService {
     // Get all available skills from Neo4j
     const availableSkills = await this.getSkillsFromNeo4j();
     
+    console.log('Extracted skills from LLM:', extractedSkills);
+    console.log('Available skills from Neo4j:', availableSkills);
+    
     // Match extracted skills with Neo4j skills
     const matchedSkills = await this.matchSkillsWithDatabase(extractedSkills, availableSkills);
+    
+    console.log('Final matched skills:', matchedSkills);
     
     return matchedSkills;
   }
@@ -73,11 +78,14 @@ export class SkillExtractionService {
       availableSkills
     );
     
+    console.log(`Primary skill "${extractedSkills.primarySkill}" matched to "${matchedPrimary}"`);
+    
     let matchedSecondary = [];
     if (extractedSkills.secSkills && extractedSkills.secSkills !== "No Skills") {
       const secondarySkillsList = extractedSkills.secSkills.split(',').map(s => s.trim());
       for (const skill of secondarySkillsList) {
         const match = await this.findBestSkillMatch(skill, availableSkills);
+        console.log(`Secondary skill "${skill}" matched to "${match}"`);
         if (match && match !== "No Match") {
           matchedSecondary.push(match);
         }
@@ -93,20 +101,33 @@ export class SkillExtractionService {
   async findBestSkillMatch(extractedSkill, availableSkills) {
     if (availableSkills.length === 0) return "No Match";
 
+    // First try direct match (case-insensitive)
+    const directMatch = availableSkills.find(
+      skill => skill.toLowerCase() === extractedSkill.toLowerCase()
+    );
+    if (directMatch) {
+      console.log(`Direct match found for "${extractedSkill}": "${directMatch}"`);
+      return directMatch;
+    }
+
+    // If no direct match, use LLM for semantic matching
     const messages = [
       { 
         role: "system", 
-        content: "You are a skill matching assistant. Find the best matching skill from the provided list." 
+        content: "You are a skill matching assistant. You must return ONLY the exact skill name from the provided list that best matches the input, or 'No Match' if none are relevant. Do not add any explanations or modifications." 
       },
       { 
         role: "user", 
-        content: `Given the extracted skill: "${extractedSkill}"
+        content: `Input skill: "${extractedSkill}"
         
-Find the best matching skill from this list:
-${availableSkills.join(', ')}
+Available skills in database:
+${availableSkills.map((skill, index) => `${index + 1}. ${skill}`).join('\n')}
 
-Return only the exact skill name from the list that best matches, or "No Match" if none are relevant.
-Consider semantic similarity, abbreviations, and related technologies.`
+Return ONLY the exact skill name from the list above that best matches the input skill.
+Consider semantic similarity, abbreviations, and related technologies.
+For example: "Java SE" should match to "Java", "JS" should match to "JavaScript", etc.
+
+Your response must be exactly one of the skill names from the list above, or "No Match".`
       }
     ];
 
@@ -115,25 +136,33 @@ Consider semantic similarity, abbreviations, and related technologies.`
         this.deploymentName,
         messages,
         {
-          temperature: 0.1,
+          temperature: 0,
           maxTokens: 50,
-          topP: 0.95
+          topP: 1
         }
       );
 
       const match = response.choices[0].message.content.trim();
+      console.log(`LLM response for "${extractedSkill}": "${match}"`);
       
       // Verify the match is actually in the available skills list
       if (availableSkills.includes(match)) {
         return match;
       }
       
-      // If LLM returned something not in the list, try case-insensitive match
-      const caseInsensitiveMatch = availableSkills.find(
-        skill => skill.toLowerCase() === match.toLowerCase()
+      // If LLM returned something not in the list, try to find partial match
+      const partialMatch = availableSkills.find(skill => 
+        skill.toLowerCase().includes(match.toLowerCase()) || 
+        match.toLowerCase().includes(skill.toLowerCase())
       );
       
-      return caseInsensitiveMatch || "No Match";
+      if (partialMatch) {
+        console.log(`Partial match found for "${extractedSkill}": "${partialMatch}"`);
+        return partialMatch;
+      }
+      
+      console.log(`No match found for "${extractedSkill}"`);
+      return "No Match";
     } catch (error) {
       console.error('Error matching skill:', error);
       return "No Match";
