@@ -40,13 +40,25 @@ export class SkillExtractionService {
   }
 
   combineResponses(q1, q2, q3) {
+    console.log('=== Combining responses ===');
+    console.log('Q1:', JSON.stringify(q1, null, 2));
+    console.log('Q2:', JSON.stringify(q2, null, 2));
+    console.log('Q3:', JSON.stringify(q3, null, 2));
+    
     // Extract text from form responses
     let text = '';
     
-    // Assuming Q1, Q2, Q3 have text fields - adjust based on your actual form structure
+    // Log all keys to see what fields are actually present
+    if (q1) console.log('Q1 keys:', Object.keys(q1));
+    if (q2) console.log('Q2 keys:', Object.keys(q2));
+    if (q3) console.log('Q3 keys:', Object.keys(q3));
+    
+    // Adjust these field names based on your actual form structure
     if (q1?.background) text += `Background: ${q1.background}. `;
     if (q2?.experience) text += `Experience: ${q2.experience}. `;
     if (q3?.interests) text += `Interests: ${q3.interests}. `;
+    
+    console.log('Combined text:', text);
     
     return text;
   }
