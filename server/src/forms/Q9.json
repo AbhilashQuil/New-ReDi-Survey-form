@@ -6,29 +6,15 @@
       "html": "Based on your responses we understand your role to be primarily <i>&lt;&lt;role&gt;&gt;</i>. Please confirm next step."
     },
     {
-      "type": "select",
+      "type": "radio",
       "key": "proceedChoice",
       "label": "Choose an option",
-      "data": {
-        "values": [
-          {
-            "label": "Yes, please proceed",
-            "value": "proceed"
-          },
-          {
-            "label": "No, I want to re-take this survey",
-            "value": "retake"
-          },
-          {
-            "label": "No, I want to exit",
-            "value": "exit"
-          }
-        ]
-      },
-      "validate": {
-        "required": true
-      },
-      "widget": "choicesjs",
+      "values": [
+        { "label": "Yes, please proceed", "value": "proceed" },
+        { "label": "No, I want to re-take this survey", "value": "retake" },
+        { "label": "No, I want to exit", "value": "exit" }
+      ],
+      "validate": { "required": true },
       "input": true
     },
     {
