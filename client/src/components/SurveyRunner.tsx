@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Form } from '@formio/react';
+import '../styles/theme.css';
 
 interface SurveyState {
   runId: string | null;
@@ -38,12 +39,10 @@ export default function SurveyRunner() {
   }, []);
 
   const delayedShowOverlay = () => {
-    // show after 150ms to avoid flash on fast requests
     overlayTimer.current = window.setTimeout(() => setOverlayVisible(true), 150);
   };
 
   const hideOverlayWithMinTime = async () => {
-    // ensure at least 300ms visible if it was shown
     if (overlayTimer.current) {
       window.clearTimeout(overlayTimer.current);
       overlayTimer.current = null;
@@ -112,7 +111,6 @@ export default function SurveyRunner() {
 
   const onSubmit = async (submission: any) => {
     if (submitting) return;
-    // Intercept Q4 zero case to show confirmation modal
     if (surveyState.currentTaskId === 'Q4' && Number(submission.data?.skillProficiency) === 0) {
       setPendingSubmission(submission);
       setShowZeroModal(true);
@@ -158,6 +156,15 @@ export default function SurveyRunner() {
     }
   };
 
+  const triggerFormSubmit = () => {
+    if (submitting) return;
+    const formEl = document.querySelector('.form-surface form') as HTMLFormElement | null;
+    if (formEl) {
+      // Let Form.io handle validation and data extraction
+      formEl.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="state-block">
@@ -193,7 +200,7 @@ export default function SurveyRunner() {
   }
 
   const currentSkill = surveyState?.context?.currentProbeSkill;
-  const showPrev = /^Q[2-9]$/.test(String(surveyState.currentTaskId || ''));
+  const showNav = /^Q[2-9]$/.test(String(surveyState.currentTaskId || ''));
 
   return (
     <div className="survey" aria-busy={submitting ? 'true' : 'false'}>
@@ -205,7 +212,7 @@ export default function SurveyRunner() {
         </div>
       </div>
 
-      <div className="form-surface" style={{ position: 'relative' }}>
+      <div className="form-surface">
         <Form
           form={surveyState.form}
           onSubmit={onSubmit}
@@ -214,56 +221,23 @@ export default function SurveyRunner() {
             disableAlerts: true
           }}
         />
-
-        {overlayVisible && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(255,255,255,0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-              pointerEvents: 'auto'
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  border: '3px solid rgba(161,0,255,0.25)',
-                  borderTopColor: '#A100FF',
-                  animation: 'spin 0.8s linear infinite'
-                }}
-              />
-              <div style={{ marginTop: 12, color: '#7A00CC', fontWeight: 600 }}>
-                {surveyState.currentTaskId === 'Q1' ? 'Loading…' : 'Submitting…'}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Centered navigation bar */}
-      {showPrev && (
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 12 }}>
+      {showNav && (
+        <div className="nav-actions">
           <button
             onClick={goPrev}
             disabled={submitting}
-            style={{
-              padding: '10px 16px',
-              borderRadius: 8,
-              border: '1px solid #ccc',
-              background: '#fff',
-              cursor: submitting ? 'not-allowed' : 'pointer'
-            }}
+            className="btn btn-secondary nav-btn"
           >
             Previous
+          </button>
+          <button
+            onClick={triggerFormSubmit}
+            disabled={submitting}
+            className="btn btn-primary nav-btn"
+          >
+            Next
           </button>
         </div>
       )}
@@ -274,38 +248,21 @@ export default function SurveyRunner() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="zero-modal-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100
-          }}
+          className="modal-overlay"
         >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 8,
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-              maxWidth: 480,
-              width: '90%',
-              padding: 20
-            }}
-          >
-            <h3 id="zero-modal-title" style={{ margin: 0, color: '#7A00CC' }}>
+          <div className="modal-card">
+            <h3 id="zero-modal-title" className="modal-title">
               Confirm zero proficiency
             </h3>
-            <p style={{ marginTop: 12 }}>
+            <p className="modal-body">
               You selected 0 (no proficiency){' '}
               {currentSkill ? <>for <b>{currentSkill}</b></> : null}. Do you want to confirm this?
             </p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-              <button onClick={onCancelZero} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ccc', background: '#fff' }}>
+            <div className="modal-actions">
+              <button onClick={onCancelZero} className="btn btn-secondary">
                 Go back
               </button>
-              <button onClick={onConfirmZero} style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: '#A100FF', color: '#fff' }}>
+              <button onClick={onConfirmZero} className="btn btn-primary">
                 Confirm 0
               </button>
             </div>
@@ -313,18 +270,21 @@ export default function SurveyRunner() {
         </div>
       )}
 
-      {/* Styling: center and lower the in-form "Next" button; spinner keyframes */}
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg);} }
-        /* Center the Form.io submit button and add top gap */
-        .form-surface .formio-component-button {
-          display: flex;
-          justify-content: center;
-          margin-top: 24px;
-        }
-        /* Slightly lower the whole nav area */
-        .survey .form-surface { margin-bottom: 8px; }
-      `}</style>
+      {/* Submit overlay */}
+      {overlayVisible && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="overlay"
+        >
+          <div className="overlay-content">
+            <div className="spinner" />
+            <div className="overlay-text">
+              {surveyState.currentTaskId === 'Q1' ? 'Loading…' : 'Submitting…'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
