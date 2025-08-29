@@ -31,6 +31,9 @@ export default function SurveyRunner() {
   const [showZeroModal, setShowZeroModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
 
+  // Ref for Form.io component
+  const formRef = useRef<any>(null);
+
   useEffect(() => {
     startSurvey();
     return () => {
@@ -111,6 +114,7 @@ export default function SurveyRunner() {
 
   const onSubmit = async (submission: any) => {
     if (submitting) return;
+    // Intercept Q4 zero case to show confirmation modal
     if (surveyState.currentTaskId === 'Q4' && Number(submission.data?.skillProficiency) === 0) {
       setPendingSubmission(submission);
       setShowZeroModal(true);
@@ -158,11 +162,14 @@ export default function SurveyRunner() {
 
   const triggerFormSubmit = () => {
     if (submitting) return;
-    const formEl = document.querySelector('.form-surface form') as HTMLFormElement | null;
-    if (formEl) {
-      // Let Form.io handle validation and data extraction
-      formEl.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    // Use Form.io API to trigger submit and validation
+    if (formRef.current?.formio) {
+      formRef.current.formio.submit();
+      return;
     }
+    // Fallback: click the internal submit button if present
+    const btn = document.querySelector('.form-surface .formio-component-button button, .form-surface .formio-component-button .btn') as HTMLButtonElement | null;
+    btn?.click();
   };
 
   if (loading) {
@@ -214,6 +221,7 @@ export default function SurveyRunner() {
 
       <div className="form-surface">
         <Form
+          ref={formRef}
           form={surveyState.form}
           onSubmit={onSubmit}
           options={{
@@ -242,7 +250,6 @@ export default function SurveyRunner() {
         </div>
       )}
 
-      {/* Zero confirmation modal for Q4 */}
       {showZeroModal && (
         <div
           role="dialog"
@@ -270,7 +277,6 @@ export default function SurveyRunner() {
         </div>
       )}
 
-      {/* Submit overlay */}
       {overlayVisible && (
         <div
           role="status"
