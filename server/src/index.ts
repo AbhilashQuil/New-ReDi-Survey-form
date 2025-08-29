@@ -314,6 +314,18 @@ Example output:
   }
 }
 
+function buildQ8OptionsFromYears(yearsBand?: string) {
+  const bands = [
+    { label: '0-2 years', value: '0-2', max: 2 },
+    { label: '3-5 years', value: '3-5', max: 5 },
+    { label: '6-9 years', value: '6-9', max: 9 },
+    { label: '10+ years', value: '10+', max: Infinity },
+  ];
+  const map: Record<string, number> = { '0-2': 2, '3-5': 5, '6-9': 9, '10+': Infinity };
+  const selectedMax = yearsBand && yearsBand in map ? map[yearsBand] : Infinity;
+  return bands.filter(b => b.max <= selectedMax).map(({ label, value }) => ({ label, value }));
+}
+
 function loadForm(fileName: string, tokens: Record<string,string>) {
   const p = path.join(formsDir, fileName);
   let json = fs.readFileSync(p, 'utf8');
@@ -322,7 +334,8 @@ function loadForm(fileName: string, tokens: Record<string,string>) {
              .replaceAll('&lt;&lt;role&gt;&gt;', tokens.role ?? '')
              .replaceAll('{{name}}', tokens.name ?? '')
              .replaceAll('{{skill}}', tokens.skill ?? '')
-             .replaceAll('{{role}}', tokens.role ?? '');
+             .replaceAll('{{role}}', tokens.role ?? '')
+             .replaceAll('{{q8Options}}', tokens.q8Options ?? '[]');
   return JSON.parse(json);
 }
 
@@ -548,6 +561,15 @@ app.post('/api/workflow/next', async (req, res) => {
         delete datagrid.data.url;
       }
     }
+  } else if (nextId === 'Q8') {
+    const q8Options = buildQ8OptionsFromYears(state.context.yearsBand);
+    const inject = {
+      name: state.context.name || 'Candidate',
+      skill: state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill',
+      role: state.context.inferredRole || 'your role',
+      q8Options: JSON.stringify(q8Options),
+    };
+    form = loadForm(`${nextId}.json`, inject);
   } else {
     skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
     const inject = {
@@ -628,6 +650,14 @@ app.post('/api/workflow/prev', async (req, res) => {
         delete datagrid.data.url;
       }
     }
+  } else if (prevId === 'Q8') {
+    const q8Options = buildQ8OptionsFromYears(state.context.yearsBand);
+    form = loadForm('Q8.json', {
+      name: state.context.name || 'Candidate',
+      skill: state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill',
+      role: state.context.inferredRole || 'your role',
+      q8Options: JSON.stringify(q8Options),
+    });
   } else {
     form = loadForm(`${prevId}.json`, {
       name: state.context.name || 'Candidate',
