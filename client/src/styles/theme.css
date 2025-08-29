@@ -20,41 +20,29 @@ html, body, #root {
   cursor: pointer;
   transition: transform .04s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
 }
-.btn:disabled {
-  opacity: .6;
-  cursor: not-allowed;
-}
+.btn:disabled { opacity: .6; cursor: not-allowed; }
 .btn-primary {
   color: #fff;
   background: var(--purple);
   border: 1px solid var(--purple);
   box-shadow: 0 6px 16px rgba(161, 0, 255, .25);
 }
-.btn-primary:hover:not(:disabled) {
-  background: var(--purple-600);
-  border-color: var(--purple-600);
-}
-.btn-secondary {
-  color: var(--text);
-  background: #fff;
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover:not(:disabled) {
-  border-color: #c9c9ce;
-}
+.btn-primary:hover:not(:disabled) { background: var(--purple-600); border-color: var(--purple-600); }
+.btn-secondary { color: var(--text); background: #fff; border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { border-color: #c9c9ce; }
 
-/* Centered nav with gap above; slightly lowered in the page */
+/* Centered nav with gap above */
 .nav-actions {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;  /* gap between questions and buttons */
+  margin-top: 24px;
   margin-bottom: 12px;
 }
 
-/* Hide the default Form.io submit button; we render our own */
-.form-surface form button[type="submit"] {
+/* IMPORTANT: hide Form.io’s in-form submit button */
+.form-surface .formio-component-button {
   display: none !important;
 }
 
@@ -69,60 +57,28 @@ html, body, #root {
   z-index: 1000;
   pointer-events: auto;
 }
-.overlay-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+.overlay-content { display: flex; flex-direction: column; align-items: center; }
 .spinner {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 3px solid rgba(161,0,255,0.25);
-  border-top-color: var(--purple);
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid rgba(161,0,255,0.25); border-top-color: var(--purple);
   animation: spin .8s linear infinite;
 }
-.overlay-text {
-  margin-top: 12px;
-  color: var(--purple-600);
-  font-weight: 600;
-}
+.overlay-text { margin-top: 12px; color: var(--purple-600); font-weight: 600; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* Modal */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; z-index: 1100;
 }
 .modal-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.25);
-  width: min(520px, 92vw);
-  padding: 20px;
+  background: #fff; border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  width: min(520px, 92vw); padding: 20px;
 }
-.modal-title {
-  margin: 0;
-  color: var(--purple-600);
-}
-.modal-body {
-  margin-top: 12px;
-  color: var(--text);
-}
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  justify-content: flex-end;
-}
+.modal-title { margin: 0; color: var(--purple-600); }
+.modal-body { margin-top: 12px; color: var(--text); }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
 
 /* Minor polish */
-.step-header .step-dot {
-  background: var(--purple);
-}
+.step-header .step-dot { background: var(--purple); }
 .muted { color: var(--muted); }
