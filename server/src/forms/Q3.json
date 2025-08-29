@@ -5,7 +5,6 @@
       "type": "textarea",
       "key": "responsibilities",
       "label": "What are your day-to-day responsibilities?",
-      "editor": "ace",
       "input": true,
       "validate": {
         "required": true

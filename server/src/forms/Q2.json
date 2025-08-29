@@ -6,7 +6,6 @@
       "key": "jobDesc",
       "label": "How would you describe your job?",
       "description": "Do not include client names or confidential info.",
-      "editor": "ace",
       "input": true,
       "validate": {
         "required": true
