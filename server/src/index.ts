@@ -87,28 +87,35 @@ function chooseNext(state: RunState, last: StepId): StepId {
 
   if (last === 'Q3') {
     const inferred = (ctx.inferredSkills ?? []) as string[];
-    // Check if we have valid skills (not "No Skill")
     const hasValidSkills = inferred.length > 0 && !inferred.includes("No Skill");
     return hasValidSkills ? 'Q4' : 'Q5';
   }
-  
+
   if (last === 'Q4') {
-    // After Q4, check if we have secondary skills
-    const secondarySkills = ctx.secSkills || [];
-    return secondarySkills.length > 0 ? 'Q7' : 'Q8';
+    // Iterative probing flow:
+    // - If any skill got >=1 -> Q7
+    // - Else if more skills to probe -> Q4
+    // - Else all zero -> EXIT_1
+    if (ctx.anySkillAboveZero) {
+      return 'Q7';
+    }
+    const secondary = ctx.secSkills ?? [];
+    const totalToProbe = 1 + secondary.length; // primary + secondaries
+    const idx = typeof ctx.q4ProbeIndex === 'number' ? ctx.q4ProbeIndex : 0;
+    if (idx + 1 < totalToProbe) return 'Q4';
+    return 'EXIT_1';
   }
-  
+
   if (last === 'Q5') {
     const sel = (ctx.recentSkills ?? []) as string[];
     const hasValidSkills = sel.length > 0 && !sel.includes("No Skills");
     return hasValidSkills ? 'Q6' : 'EXIT_1';
   }
-  
+
   if (last === 'Q7') {
-    // After Q7, go to Q8
     return 'Q8';
   }
-  
+
   if (last === 'Q9') {
     switch (ctx.proceedChoice) {
       case 'proceed': return 'EXIT_2';
@@ -118,7 +125,7 @@ function chooseNext(state: RunState, last: StepId): StepId {
       default: return 'EXIT_1';
     }
   }
-  
+
   return (NEXT_LINEAR[last] ?? 'EXIT_2') as StepId;
 }
 
@@ -381,28 +388,20 @@ app.get('/api/options/skills-matrix', (req, res) => {
   ]);
 });
 
-// app.post('/api/workflow/start', async (_req, res) => {
-//   const runId = uuid();
-//   const state: RunState = { runId, currentTaskId: 'Q1', context: {} };
-//   runs.set(runId, state);
-//   try { await startWorkflowRun(runId); } catch {}
-//   const form = loadForm('Q1.json', { name: 'Candidate' });
-//   const payload: NextStepResponse = { done: false, currentTaskId: 'Q1', form, context: state.context };
-//   res.json(payload);
-// });
-
 app.post('/api/workflow/start', async (_req, res) => {
   const runId = uuid();
   const state: RunState = { runId, currentTaskId: 'Q1', context: {} };
+  // initialize navigation history
+  state.context.navHistory = [];
   runs.set(runId, state);
   try { await startWorkflowRun(runId); } catch {}
   const form = loadForm('Q1.json', { name: 'Candidate' });
-  const payload: NextStepResponse = { 
-    done: false, 
-    currentTaskId: 'Q1', 
-    form, 
+  const payload: NextStepResponse = {
+    done: false,
+    currentTaskId: 'Q1',
+    form,
     context: state.context,
-    runId // Add this line to include runId in response
+    runId
   };
   res.json(payload);
 });
@@ -413,55 +412,70 @@ app.post('/api/workflow/next', async (req, res) => {
   const state = runs.get(runId);
   if (!state || state.currentTaskId !== taskId) return res.status(400).json({ error: 'Invalid run or task' });
 
+  // Merge submitted values into context
   state.context = { ...state.context, ...values };
 
   try { await signalFormSubmitted(runId, { taskId, values }); } catch {}
 
+  // After Q3: set up secondary skills and Q4 probing state
   if (taskId === 'Q3') {
     const inf = await inferSkillsFromFreeText(state.context);
     state.context.inferredSkills = inf.skills;
     state.context.suggestedPrimarySkill = inf.primary;
     state.context.inferredRole = inf.role;
-    
-    // Calculate secondary skills - only those that are different from primary and exist in Neo4j
-    // Note: inf.skills already contains only skills that exist in Neo4j due to the matching logic
-    const secondarySkills = inf.skills.filter((skill: string) => 
+
+    const secondarySkills = (inf.skills || []).filter((skill: string) =>
       skill !== inf.primary && skill !== "No Skill"
     );
     state.context.secSkills = secondarySkills;
-    
-    console.log('Primary skill:', inf.primary);
-    console.log('Secondary skills (all from Neo4j):', secondarySkills);
-    
-    // Initialize skill assessment tracking
-    state.context.skillAssessments = [];
+
+    // Initialize tracking
+    if (!state.context.skillAssessments) state.context.skillAssessments = [];
+    state.context.q4ProbeIndex = 0;
+    state.context.q4Probed = [];
+    state.context.anySkillAboveZero = false;
   }
-  
+
+  // Q4 probing: record current skill's score and update state
   if (taskId === 'Q4') {
-    // Store the primary skill assessment
-    const primarySkill = state.context.suggestedPrimarySkill;
-    
-    if (!state.context.skillAssessments) {
-      state.context.skillAssessments = [];
-    }
-    
+    const secSkills = state.context.secSkills || [];
+    const idx = typeof state.context.q4ProbeIndex === 'number' ? state.context.q4ProbeIndex : 0;
+    const currentSkill = idx === 0
+      ? (state.context.suggestedPrimarySkill || state.context.primarySkill || 'Unknown Skill')
+      : (secSkills[idx - 1] || 'Unknown Skill');
+
+    const score = Number(values.skillProficiency ?? 0);
+
+    if (!state.context.skillAssessments) state.context.skillAssessments = [];
+    if (!state.context.q4Probed) state.context.q4Probed = [];
+
     state.context.skillAssessments.push({
-      skill: primarySkill,
-      proficiencyLevel: values.skillProficiency
+      skill: currentSkill,
+      proficiencyLevel: score
     });
-    
-    // Set primary skill
-    state.context.primarySkill = primarySkill;
+    state.context.q4Probed.push({
+      skill: currentSkill,
+      proficiencyLevel: score
+    });
+
+    if (score >= 1) {
+      state.context.anySkillAboveZero = true;
+      state.context.primarySkill = currentSkill; // promote
+    } else {
+      const totalToProbe = 1 + secSkills.length;
+      if (idx + 1 < totalToProbe) {
+        state.context.q4ProbeIndex = idx + 1; // advance to next secondary
+      }
+    }
   }
-  
+
   if (taskId === 'Q6') {
     const primary = state.context.suggestedPrimarySkill
       || (Array.isArray(state.context.recentSkills) ? state.context.recentSkills[0] : undefined);
     state.context.primarySkill = primary;
   }
-  
+
   if (taskId === 'Q7') {
-    // Store all secondary skill assessments
     if (values.skillsMatrix) {
       values.skillsMatrix.forEach((assessment: any) => {
         state.context.skillAssessments.push({
@@ -470,8 +484,6 @@ app.post('/api/workflow/next', async (req, res) => {
         });
       });
     }
-    
-    console.log('All skill assessments:', state.context.skillAssessments);
   }
 
   const nextId = chooseNext(state, taskId as StepId);
@@ -482,69 +494,154 @@ app.post('/api/workflow/next', async (req, res) => {
     return res.json({ done: true, currentTaskId: nextId, form: exitForm, context: state.context });
   }
 
+  // Push current task into back-stack for navigation (Q2–Q9 only)
+  const isNumbered = /^Q[2-9]$/.test(taskId);
+  if (isNumbered) {
+    if (!Array.isArray(state.context.navHistory)) state.context.navHistory = [];
+    state.context.navHistory.push(taskId);
+  }
+
   state.currentTaskId = nextId;
 
   let form;
   let skillToShow = 'the suggested skill';
-  
+
   if (nextId === 'Q4') {
-    // Q4 shows primary skill
-    skillToShow = state.context.suggestedPrimarySkill || 'the suggested skill';
-    console.log('Q4 - Primary skill:', skillToShow);
-    
+    const idx = typeof state.context.q4ProbeIndex === 'number' ? state.context.q4ProbeIndex : 0;
+    if (idx === 0) {
+      skillToShow = state.context.suggestedPrimarySkill || 'the suggested skill';
+    } else {
+      const list = state.context.secSkills || [];
+      skillToShow = list[idx - 1] || (state.context.suggestedPrimarySkill || 'the suggested skill');
+    }
+    state.context.currentProbeSkill = skillToShow;
+
     const inject = {
       name: state.context.name || 'Candidate',
       skill: skillToShow,
       role: state.context.inferredRole || 'your role'
     };
-    
     form = loadForm(`${nextId}.json`, inject);
   } else if (nextId === 'Q7') {
-    // Q7 shows secondary skills
-    const secondarySkills = state.context.secSkills || [];
-    
-    console.log('Q7 - Loading with secondary skills:', secondarySkills);
-    
+    // Only include secondary skills that were not probed in Q4
+    const allSecondaries: string[] = state.context.secSkills || [];
+    const probedSet = new Set((state.context.q4Probed || []).map((a: any) => a.skill));
+    const remainingSecondaries = allSecondaries.filter(s => !probedSet.has(s));
+
     const inject = {
       name: state.context.name || 'Candidate',
       skill: 'secondary skills',
       role: state.context.inferredRole || 'your role'
     };
-    
-    form = loadFormWithSecondarySkills(`${nextId}.json`, inject, secondarySkills);
-    
-    // Update the form to use embedded data instead of URL
+    form = loadFormWithSecondarySkills(`${nextId}.json`, inject, remainingSecondaries);
+
     if (form.components) {
       const datagrid = form.components.find((c: any) => c.key === 'skillsMatrix');
       if (datagrid) {
-        // Change from URL to values
         datagrid.dataSrc = 'values';
         datagrid.data = {
-          values: secondarySkills.map(skill => ({
+          values: remainingSecondaries.map(skill => ({
             skill: skill,
             proficiency: ''
           }))
         };
-        // Remove the URL property
         delete datagrid.data.url;
       }
     }
   } else {
     skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
-    
     const inject = {
       name: state.context.name || 'Candidate',
       skill: skillToShow,
       role: state.context.inferredRole || 'your role'
     };
-    
     form = loadForm(`${nextId}.json`, inject);
   }
-  
-  console.log('Loading form:', nextId);
-  console.log('Current context:', state.context);
-  
+
   res.json({ done: false, currentTaskId: nextId, form, context: state.context });
+});
+
+// New: previous-step endpoint (Q2–Q9)
+app.post('/api/workflow/prev', async (req, res) => {
+  const schema = z.object({ runId: z.string() });
+  const { runId } = schema.parse(req.body);
+
+  const state = runs.get(runId);
+  if (!state) return res.status(400).json({ error: 'Invalid runId' });
+
+  const stack = Array.isArray(state.context.navHistory) ? state.context.navHistory : [];
+  if (!stack.length) {
+    // Nothing to go back to
+    return res.json({
+      done: false,
+      currentTaskId: state.currentTaskId,
+      form: loadForm(`${state.currentTaskId}.json`, {
+        name: state.context.name || 'Candidate',
+        skill: state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill',
+        role: state.context.inferredRole || 'your role'
+      }),
+      context: state.context
+    });
+  }
+
+  const prevId = stack.pop() as StepId;
+  state.context.navHistory = stack;
+  state.currentTaskId = prevId;
+
+  let form;
+  if (prevId === 'Q4') {
+    // Use current q4ProbeIndex to determine which skill to show
+    const idx = typeof state.context.q4ProbeIndex === 'number' ? state.context.q4ProbeIndex : 0;
+    const secSkills = state.context.secSkills || [];
+    const skillToShow = idx === 0
+      ? (state.context.suggestedPrimarySkill || 'the suggested skill')
+      : (secSkills[idx - 1] || (state.context.suggestedPrimarySkill || 'the suggested skill'));
+
+    state.context.currentProbeSkill = skillToShow;
+
+    form = loadForm('Q4.json', {
+      name: state.context.name || 'Candidate',
+      skill: skillToShow,
+      role: state.context.inferredRole || 'your role'
+    });
+  } else if (prevId === 'Q7') {
+    const allSecondaries: string[] = state.context.secSkills || [];
+    const probedSet = new Set((state.context.q4Probed || []).map((a: any) => a.skill));
+    const remainingSecondaries = allSecondaries.filter(s => !probedSet.has(s));
+
+    form = loadFormWithSecondarySkills('Q7.json', {
+      name: state.context.name || 'Candidate',
+      skill: 'secondary skills',
+      role: state.context.inferredRole || 'your role'
+    }, remainingSecondaries);
+
+    if (form.components) {
+      const datagrid = form.components.find((c: any) => c.key === 'skillsMatrix');
+      if (datagrid) {
+        datagrid.dataSrc = 'values';
+        datagrid.data = {
+          values: remainingSecondaries.map(skill => ({
+            skill: skill,
+            proficiency: ''
+          }))
+        };
+        delete datagrid.data.url;
+      }
+    }
+  } else {
+    form = loadForm(`${prevId}.json`, {
+      name: state.context.name || 'Candidate',
+      skill: state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill',
+      role: state.context.inferredRole || 'your role'
+    });
+  }
+
+  res.json({
+    done: false,
+    currentTaskId: prevId,
+    form,
+    context: state.context
+  });
 });
 
 // Cleanup on server shutdown
