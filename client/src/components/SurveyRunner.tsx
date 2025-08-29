@@ -31,7 +31,7 @@ export default function SurveyRunner() {
   const [showZeroModal, setShowZeroModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
 
-  // Ref for Form.io component
+  // Ref for Form.io instance
   const formRef = useRef<any>(null);
 
   useEffect(() => {
@@ -162,12 +162,12 @@ export default function SurveyRunner() {
 
   const triggerFormSubmit = () => {
     if (submitting) return;
-    // Use Form.io API to trigger submit and validation
+    // Use the Form.io API to trigger validation + submit
     if (formRef.current?.formio) {
       formRef.current.formio.submit();
       return;
     }
-    // Fallback: click the internal submit button if present
+    // Fallback: click the internal button if visible
     const btn = document.querySelector('.form-surface .formio-component-button button, .form-surface .formio-component-button .btn') as HTMLButtonElement | null;
     btn?.click();
   };
@@ -207,7 +207,12 @@ export default function SurveyRunner() {
   }
 
   const currentSkill = surveyState?.context?.currentProbeSkill;
-  const showNav = /^Q[2-9]$/.test(String(surveyState.currentTaskId || ''));
+
+  // Show nav on Q1–Q9 (we hide for EXIT_*)
+  const showNav = /^Q[1-9]$/.test(String(surveyState.currentTaskId || ''));
+
+  // Disable Previous when there’s nowhere to go back (e.g., on Q1)
+  const hasPrev = Array.isArray(surveyState.context?.navHistory) && surveyState.context.navHistory.length > 0;
 
   return (
     <div className="survey" aria-busy={submitting ? 'true' : 'false'}>
@@ -235,7 +240,7 @@ export default function SurveyRunner() {
         <div className="nav-actions">
           <button
             onClick={goPrev}
-            disabled={submitting}
+            disabled={submitting || !hasPrev}
             className="btn btn-secondary nav-btn"
           >
             Previous
@@ -278,11 +283,7 @@ export default function SurveyRunner() {
       )}
 
       {overlayVisible && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="overlay"
-        >
+        <div role="status" aria-live="polite" className="overlay">
           <div className="overlay-content">
             <div className="spinner" />
             <div className="overlay-text">
