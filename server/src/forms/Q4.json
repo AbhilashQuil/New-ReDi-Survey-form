@@ -6,17 +6,17 @@
       "html": "<b>On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?</b>"
     },
     {
-      "type": "slider",
+      "type": "content",
+      "html": "<div><label for='skillProficiency-slider'>Skill proficiency level (0-7): <strong id='skill-value-display'>0</strong></label><br><input type='range' id='skillProficiency-slider' min='0' max='7' step='1' value='0' style='width: 100%; margin: 10px 0;' oninput='document.getElementById(\"skill-value-display\").innerText = this.value; document.querySelector(\"input[name=\\\"data[skillProficiency]\\\"]\").value = this.value;'></div>"
+    },
+    {
+      "type": "hidden",
       "key": "skillProficiency",
-      "label": "Skill proficiency level (0-7)",
-      "min": 0,
-      "max": 7,
-      "step": 1,
-      "defaultValue": 0,
+      "input": true,
       "validate": {
-        "required": true
+        "required": false
       },
-      "input": true
+      "defaultValue": 0
     },
     {
       "type": "button",
