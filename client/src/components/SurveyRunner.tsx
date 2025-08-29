@@ -31,7 +31,7 @@ export default function SurveyRunner() {
   const [showZeroModal, setShowZeroModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
 
-  // Ref for Form.io instance
+  // Ref for Form.io component
   const formRef = useRef<any>(null);
 
   useEffect(() => {
@@ -162,12 +162,12 @@ export default function SurveyRunner() {
 
   const triggerFormSubmit = () => {
     if (submitting) return;
-    // Use the Form.io API to trigger validation + submit
+    // Use Form.io API for proper validation + submit
     if (formRef.current?.formio) {
       formRef.current.formio.submit();
       return;
     }
-    // Fallback: click the internal button if visible
+    // Fallback: click internal button if visible
     const btn = document.querySelector('.form-surface .formio-component-button button, .form-surface .formio-component-button .btn') as HTMLButtonElement | null;
     btn?.click();
   };
@@ -208,22 +208,13 @@ export default function SurveyRunner() {
 
   const currentSkill = surveyState?.context?.currentProbeSkill;
 
-  // Show nav on Q1–Q9 (we hide for EXIT_*)
+  // Show nav on Q1–Q9 (we hide for EXIT_* steps)
   const showNav = /^Q[1-9]$/.test(String(surveyState.currentTaskId || ''));
-
-  // Disable Previous when there’s nowhere to go back (e.g., on Q1)
   const hasPrev = Array.isArray(surveyState.context?.navHistory) && surveyState.context.navHistory.length > 0;
 
   return (
     <div className="survey" aria-busy={submitting ? 'true' : 'false'}>
-      <div className="step-header">
-        <div className="step-dot" />
-        <div>
-          <div className="step-label">Current step</div>
-          <div className="step-title">{surveyState.currentTaskId}</div>
-        </div>
-      </div>
-
+      {/* Removed the 'Current step: Qx' header */}
       <div className="form-surface">
         <Form
           ref={formRef}
@@ -256,27 +247,16 @@ export default function SurveyRunner() {
       )}
 
       {showZeroModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="zero-modal-title"
-          className="modal-overlay"
-        >
+        <div role="dialog" aria-modal="true" aria-labelledby="zero-modal-title" className="modal-overlay">
           <div className="modal-card">
-            <h3 id="zero-modal-title" className="modal-title">
-              Confirm zero proficiency
-            </h3>
+            <h3 id="zero-modal-title" className="modal-title">Confirm zero proficiency</h3>
             <p className="modal-body">
               You selected 0 (no proficiency){' '}
               {currentSkill ? <>for <b>{currentSkill}</b></> : null}. Do you want to confirm this?
             </p>
             <div className="modal-actions">
-              <button onClick={onCancelZero} className="btn btn-secondary">
-                Go back
-              </button>
-              <button onClick={onConfirmZero} className="btn btn-primary">
-                Confirm 0
-              </button>
+              <button onClick={onCancelZero} className="btn btn-secondary">Go back</button>
+              <button onClick={onConfirmZero} className="btn btn-primary">Confirm 0</button>
             </div>
           </div>
         </div>
