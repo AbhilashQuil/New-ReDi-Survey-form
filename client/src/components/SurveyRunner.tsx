@@ -18,14 +18,16 @@ export default function SurveyRunner() {
     context: {},
     done: false
   });
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Start the survey when component mounts
   useEffect(() => {
     startSurvey();
   }, []);
 
-  // Start the survey
   const startSurvey = async () => {
+    setLoading(true);
+    setErrorMsg(null);
     try {
       const response = await axios.post('/api/workflow/start');
       setSurveyState({
@@ -35,18 +37,19 @@ export default function SurveyRunner() {
         context: response.data.context,
         done: response.data.done || false
       });
-    } catch (error) {
-      console.error('Failed to start survey:', error);
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error || 'Failed to start survey.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Submit form and go to next step
   const onSubmit = async (submission: any) => {
     if (!surveyState.runId) {
-      console.error('No runId available');
+      setErrorMsg('No runId available.');
       return;
     }
-
+    setErrorMsg(null);
     try {
       const response = await axios.post('/api/workflow/next', {
         runId: surveyState.runId,
@@ -68,36 +71,65 @@ export default function SurveyRunner() {
           context: response.data.context
         });
       }
-    } catch (error) {
-      console.error('Failed to submit form:', error);
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error || 'Failed to submit form.');
     }
   };
 
-  // Render the component
+  if (loading) {
+    return (
+      <div className="state-block">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-line" />
+        <div className="skeleton skeleton-line short" />
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="state-block error">
+        <strong>Something went wrong</strong>
+        <div className="muted">{errorMsg}</div>
+        <button className="btn" onClick={startSurvey}>Try again</button>
+      </div>
+    );
+  }
+
   if (surveyState.done) {
     return (
-      <div>
-        <h2>Survey Complete!</h2>
-        <pre>{JSON.stringify(surveyState.context, null, 2)}</pre>
+      <div className="state-block success">
+        <h3>Survey complete!</h3>
+        <p className="muted">Here’s a summary of your responses:</p>
+        <pre className="summary-pre">{JSON.stringify(surveyState.context, null, 2)}</pre>
       </div>
     );
   }
 
   if (!surveyState.form) {
-    return <div>Loading survey...</div>;
+    return <div className="state-block">Preparing your first step…</div>;
   }
 
   return (
-    <div>
-      <h3>Task: {surveyState.currentTaskId}</h3>
-      <Form
-        form={surveyState.form}
-        onSubmit={onSubmit}
-        options={{
-          submitMessage: '',
-          disableAlerts: true
-        }}
-      />
+    <div className="survey">
+      <div className="step-header">
+        <div className="step-dot" />
+        <div>
+          <div className="step-label">Current step</div>
+          <div className="step-title">{surveyState.currentTaskId}</div>
+        </div>
+      </div>
+
+      <div className="form-surface">
+        <Form
+          form={surveyState.form}
+          onSubmit={onSubmit}
+          options={{
+            submitMessage: '',
+            disableAlerts: true
+          }}
+        />
+      </div>
     </div>
   );
 }
