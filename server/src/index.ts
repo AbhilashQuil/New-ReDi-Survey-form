@@ -507,9 +507,9 @@ app.post('/api/workflow/next', async (req, res) => {
     return res.json({ done: true, currentTaskId: nextId, form: exitForm, context: state.context });
   }
 
-  // Push current task into back-stack for navigation (Q2–Q9 only)
-  const isNumbered = /^Q[2-9]$/.test(taskId);
-  if (isNumbered) {
+  // Push current task into back-stack for navigation (include Q1 so Q2 can go back)
+  const isNavigable = /^Q[1-9]$/.test(taskId);
+  if (isNavigable) {
     if (!Array.isArray(state.context.navHistory)) state.context.navHistory = [];
     state.context.navHistory.push(taskId);
   }
@@ -571,7 +571,7 @@ app.post('/api/workflow/next', async (req, res) => {
     };
     form = loadForm(`${nextId}.json`, inject);
   } else {
-    skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
+    const skillToShow = state.context.primarySkill || state.context.suggestedPrimarySkill || 'the suggested skill';
     const inject = {
       name: state.context.name || 'Candidate',
       skill: skillToShow,
