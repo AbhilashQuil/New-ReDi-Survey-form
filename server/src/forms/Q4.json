@@ -8,7 +8,7 @@
     {
       "type": "slider",
       "key": "skillProficiency",
-      "label": "Skill proficiency level (0-7)",
+      "label": "On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?",
       "min": 0,
       "max": 7,
       "step": 1,
