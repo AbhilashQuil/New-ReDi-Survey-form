@@ -1,0 +1,123 @@
+:root {
+  --bg: #0b1020;
+  --panel: #111834;
+  --border: #202a55;
+  --muted: #9fb0d3;
+  --text: #e9efff;
+  --accent: #5aa2ff;
+  --accent-2: #9c7aff;
+  --danger: #ff6b6b;
+  --success: #19c37d;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 800px at 70% -10%, #1a255b 0%, rgba(26,37,91,0) 70%) fixed, var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(9,14,32,0.6);
+  backdrop-filter: blur(10px);
+  position: sticky; top: 0; z-index: 20;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+.brand-accent { color: var(--accent); }
+
+.content {
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 0 16px;
+  width: 100%;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(22,30,64,0.8), rgba(16,21,46,0.8));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+.card-title { margin: 8px 0 4px; }
+.card-subtitle { margin: 0 0 16px; color: var(--muted); }
+
+.survey .step-header {
+  display: flex; gap: 12px; align-items: center;
+  margin-bottom: 12px;
+}
+.step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 12px rgba(90,162,255,0.7);
+}
+.step-label { font-size: 12px; color: var(--muted); }
+.step-title { font-weight: 700; }
+
+.form-surface {
+  background: rgba(6,10,28,0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.state-block {
+  display: grid; gap: 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: rgba(6,10,28,0.4);
+}
+.state-block.error { border-color: rgba(255,107,107,0.4); }
+.state-block.success { border-color: rgba(25,195,125,0.4); }
+
+.muted { color: var(--muted); }
+.btn {
+  width: fit-content;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white; border: none; border-radius: 8px;
+  padding: 8px 12px; cursor: pointer; font-weight: 600;
+}
+.btn:hover { filter: brightness(1.05); }
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+.skeleton-title { height: 20px; width: 40%; }
+.skeleton-line { height: 12px; width: 100%; }
+.skeleton-line.short { width: 60%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Optional: tame some Form.io defaults inside dark card */
+.form-surface .formio-form, .form-surface form {
+  color: var(--text);
+}
+.form-surface label { color: var(--text); }
+.form-surface .btn-primary, .form-surface button[type="submit"] {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+}
