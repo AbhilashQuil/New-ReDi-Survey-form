@@ -1,0 +1,9 @@
+{
+  "display": "form",
+  "components": [
+    {
+      "type": "content",
+      "html": "<h3>Thank you</h3><p>Thank you - you may now close the window.</p>"
+    }
+  ]
+}

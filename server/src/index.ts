@@ -73,13 +73,13 @@ const config = {
   },
 };
 
-type StepId = 'Q1'|'Q2'|'Q3'|'Q4'|'Q5'|'Q6'|'Q7'|'Q8'|'Q9'|'EXIT_1'|'EXIT_2';
+type StepId = 'Q1'|'Q2'|'Q3'|'Q4'|'Q5'|'Q6'|'Q7'|'Q8'|'Q9'|'EXIT_1'|'EXIT_2'|'EXIT_3';
 
 const runs = new Map<string, RunState>();
 
 const NEXT_LINEAR: Record<StepId, StepId|undefined> = {
   Q1:'Q2', Q2:'Q3', Q3:undefined, Q4:undefined, Q5:undefined, Q6:'Q7', Q7:'Q8', Q8:'Q9', Q9:undefined,
-  EXIT_1:undefined, EXIT_2:undefined
+  EXIT_1:undefined, EXIT_2:undefined, EXIT_3:undefined
 };
 
 function chooseNext(state: RunState, last: StepId): StepId {
@@ -122,6 +122,9 @@ function chooseNext(state: RunState, last: StepId): StepId {
       case 'retake':
         state.context = {};
         return 'Q1';
+      case 'exit':
+        state.context = {};
+        return 'EXIT_3';
       default: return 'EXIT_1';
     }
   }
