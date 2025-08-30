@@ -22,6 +22,7 @@
           "key": "skill",
           "label": "Skill",
           "disabled": true,
+          "customClass": "sec-skill",
           "tableView": true,
           "input": true
         },

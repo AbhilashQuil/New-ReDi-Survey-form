@@ -49,3 +49,8 @@ html, body, #root { background: var(--bg); color: var(--text); }
 /* Minor polish */
 .step-header .step-dot { background: var(--purple); }
 .muted { color: var(--muted); }
+
+/* Utility styles for Q4 and Q7 */
+.accent-skill { color: var(--purple); font-weight: 700; }
+.sec-skill input { font-weight: 700; color: var(--purple-600); background: transparent; }
+.sec-skill input[disabled] { -webkit-text-fill-color: var(--purple-600); opacity: 1; }

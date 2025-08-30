@@ -3,12 +3,13 @@
   "components": [
     {
       "type": "content",
-      "html": "<b>On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?</b>"
+      "html": "<b>On the below scale, how would you rate your level of comfort &amp; proficiency on <span class=\"accent-skill\">{{skill}}</span>?</b>"
     },
     {
       "type": "slider",
       "key": "skillProficiency",
       "label": "On the below scale, how would you rate your level of comfort & proficiency on {{skill}}?",
+      "hideLabel": true,
       "min": 0,
       "max": 7,
       "step": 1,

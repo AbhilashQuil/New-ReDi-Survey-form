@@ -2,3 +2,8 @@
 .env
 .env.local
 .env.production
+
+# Build artifacts
+client/dist/
+server/dist/
+node_modules/
