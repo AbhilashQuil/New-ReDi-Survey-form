@@ -211,13 +211,11 @@ If no good match exists, return the original skill: "${extractedSkill}"`
 
 async function inferSkillsFromFreeText(ctx: any): Promise<{ skills: string[], primary?: string, role?: string }> {
   try {
-    // Initialize Azure OpenAI client
     const client = new OpenAIClient(
       config.azureOpenAI.endpoint,
       new AzureKeyCredential(config.azureOpenAI.apiKey)
     );
 
-    // Combine responses from Q1, Q2, Q3
     const combinedText = `
       Job Description: ${ctx.jobDesc || ''}
       Responsibilities: ${ctx.responsibilities || ''}
@@ -263,42 +261,44 @@ Example output:
 
     console.log('AI inference result (before Neo4j matching):', result);
     
-    // Get available skills from Neo4j
     const availableSkills = await getSkillsFromNeo4j();
     console.log('Available skills from Neo4j:', availableSkills);
     
-    // Match each extracted skill with Neo4j database and only keep those that exist in Neo4j
-    const matchedSkills = [];
+    // Deduplicate matched skills (unique, and must exist in Neo4j)
+    const matchedSkills: string[] = [];
     const skillsInNeo4j = new Set<string>();
     
     for (const skill of result.skills) {
-      if (skill !== "No Skill") {
-        const matchedSkill = await matchSkillWithNeo4j(skill, availableSkills);
-        // Only add if the skill exists in Neo4j
-        if (availableSkills.includes(matchedSkill)) {
-          matchedSkills.push(matchedSkill);
-          skillsInNeo4j.add(matchedSkill);
-          console.log(`Skill "${skill}" matched to "${matchedSkill}" (exists in Neo4j)`);
-        } else {
-          console.log(`Skill "${skill}" not found in Neo4j, excluding from results`);
-        }
+      if (skill === "No Skill") continue;
+
+      const matchedSkill = await matchSkillWithNeo4j(skill, availableSkills);
+      if (!availableSkills.includes(matchedSkill)) {
+        console.log(`Skill "${skill}" not found in Neo4j, excluding from results`);
+        continue;
+      }
+
+      if (!skillsInNeo4j.has(matchedSkill)) {
+        matchedSkills.push(matchedSkill);
+        skillsInNeo4j.add(matchedSkill);
+        console.log(`Added unique skill "${matchedSkill}"`);
+      } else {
+        console.log(`Duplicate "${matchedSkill}" skipped`);
       }
     }
     
-    // Match primary skill
+    // Match primary skill; ensure it's in Neo4j; if not, fallback to first matched skill
     let matchedPrimary = result.primary;
     if (result.primary && result.primary !== "No Skill") {
-      matchedPrimary = await matchSkillWithNeo4j(result.primary, availableSkills);
-      // Check if primary skill exists in Neo4j
-      if (!availableSkills.includes(matchedPrimary)) {
-        console.log(`Primary skill "${result.primary}" not found in Neo4j`);
-        // If primary skill doesn't exist in Neo4j, pick the first matched skill as primary
-        matchedPrimary = matchedSkills.length > 0 ? matchedSkills[0] : undefined;
-      } else {
+      const candidate = await matchSkillWithNeo4j(result.primary, availableSkills);
+      if (availableSkills.includes(candidate)) {
+        matchedPrimary = candidate;
         console.log(`Primary skill "${result.primary}" matched to "${matchedPrimary}"`);
+      } else {
+        console.log(`Primary skill "${result.primary}" not found in Neo4j; falling back if needed`);
+        matchedPrimary = matchedSkills.length > 0 ? matchedSkills[0] : undefined;
       }
     }
-    
+
     const finalResult = {
       skills: matchedSkills.length > 0 ? matchedSkills : ["No Skill"],
       primary: matchedPrimary === "No Skill" ? undefined : matchedPrimary,
@@ -306,7 +306,6 @@ Example output:
     };
     
     console.log('AI inference result (after Neo4j matching):', finalResult);
-    
     return finalResult;
   } catch (error) {
     console.error('Error inferring skills:', error);
@@ -437,10 +436,13 @@ app.post('/api/workflow/next', async (req, res) => {
     state.context.suggestedPrimarySkill = inf.primary;
     state.context.inferredRole = inf.role;
 
-    const secondarySkills = (inf.skills || []).filter((skill: string) =>
-      skill !== inf.primary && skill !== "No Skill"
+    // Build unique secondary skills, excluding primary and "No Skill"
+    const secondarySkillsRaw = (inf.skills || []);
+    const secondarySkills = secondarySkillsRaw.filter((skill: string) =>
+      skill && skill !== inf.primary && skill !== "No Skill"
     );
-    state.context.secSkills = secondarySkills;
+    const uniqueSecondaries = Array.from(new Set(secondarySkills));
+    state.context.secSkills = uniqueSecondaries;
 
     // Initialize tracking
     if (!state.context.skillAssessments) state.context.skillAssessments = [];
@@ -536,8 +538,8 @@ app.post('/api/workflow/next', async (req, res) => {
     };
     form = loadForm(`${nextId}.json`, inject);
   } else if (nextId === 'Q7') {
-    // Only include secondary skills that were not probed in Q4
-    const allSecondaries: string[] = state.context.secSkills || [];
+    // Only include unique secondary skills that were not probed in Q4
+    const allSecondaries: string[] = Array.from(new Set(state.context.secSkills || []));
     const probedSet = new Set((state.context.q4Probed || []).map((a: any) => a.skill));
     const remainingSecondaries = allSecondaries.filter(s => !probedSet.has(s));
 
@@ -627,7 +629,7 @@ app.post('/api/workflow/prev', async (req, res) => {
       role: state.context.inferredRole || 'your role'
     });
   } else if (prevId === 'Q7') {
-    const allSecondaries: string[] = state.context.secSkills || [];
+    const allSecondaries: string[] = Array.from(new Set(state.context.secSkills || []));
     const probedSet = new Set((state.context.q4Probed || []).map((a: any) => a.skill));
     const remainingSecondaries = allSecondaries.filter(s => !probedSet.has(s));
 
